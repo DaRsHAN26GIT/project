@@ -1,4 +1,4 @@
-const CACHE = "ruralclass-v3";
+const CACHE = "ruralclass-v4";
 const PAGES = [
   "/",
   "/dashboard",
@@ -12,6 +12,7 @@ const PAGES = [
   "/offline",
   "/impact",
   "/presentation",
+  "/evaluation",
   "/icon.svg",
 ];
 self.addEventListener("install", (e) =>

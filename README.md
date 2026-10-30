@@ -2,6 +2,8 @@
 
 **One Teacher. Multiple Grades. Continuous Learning.**
 
+![RuralClass Judge’s Desk with live scenario controls and calculated evidence](docs/screenshots/judge-workbench.png)
+
 An offline-first, fictional classroom demonstration built with Next.js App Router, React, TypeScript, Tailwind, Motion, Recharts, and lazy-loaded React Three Fiber. No API keys or login are needed for the local scheduling workflow.
 
 ## Run
@@ -93,3 +95,20 @@ Cloud requests use bounded conversation history, strict function schemas, server
 ### Easier Windows startup
 
 Extract the **entire** ZIP, then double-click `start-windows.cmd` in the same folder as `package.json`. It installs the locked dependencies and starts the website. Node.js must already be installed. Alternatively, in VS Code's terminal in that folder, run `npm.cmd ci` followed by `npm.cmd run dev`.
+
+### 3D classroom regression check
+
+Class labels use native Three.js canvas-texture sprites, avoiding nested DOM roots during React Strict Mode cleanup. The browser regression check captures React console warnings and page errors while repeatedly mounting the 3D view, changing grades, and returning to 2D. To exercise development Strict Mode, start `npm run dev -- --port 3001`, then run `TEST_BASE_URL=http://localhost:3001 npm run test:classroom` (PowerShell: set `$env:TEST_BASE_URL="http://localhost:3001"` before `npm.cmd run test:classroom`). The same check is included in `npm run test:browser` against the production server.
+
+## Hackathon evaluation and live API evidence
+
+Open **Judge’s desk** (`/evaluation`) for the six supplied Level 2 criteria: Innovation, Impact, Execution, UI/UX, Demo, and Feasibility. It includes a judge-customizable interruption, before/after schedules, independent constraint audits, an actual frontend/backend schedule comparison, optional authenticated read-status checks, JSON evidence export, and a printable judge brief. It preserves the existing colour palette and uses the same shadcn/ui design system.
+
+`POST /api/schedule` exposes the real deterministic scheduling engine with bounded request validation; `GET /api/health` performs an actual reference-scenario check and reports safe service metadata. Neither requires an AI key for the core demonstration. Live AI is never marked verified by a metadata-only health request. The judge report distinguishes calculated measures from field results that have not been measured.
+
+See `docs/HACKATHON.md` for the criterion-by-criterion evidence map, three-minute demonstration, API example, and proposed pilot protocol. Run `npm run test:evaluation` against the production server to check the judge workflow and APIs. Cached offline judge-page reload is tested after production installation; a first-ever offline visit is not supported.
+
+
+![Actual frontend/backend schedule parity and explicit service readiness](docs/screenshots/api-parity.png)
+
+Validation scope and results are recorded in `docs/VALIDATION.md`. These screenshots come from the running production build, using fictional data.

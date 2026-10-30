@@ -1,3 +1,4 @@
+import { readJsonRequest } from "@/lib/read-request";
 import { NextResponse } from "next/server";
 import {
   cloudAssistant,
@@ -87,32 +88,19 @@ export async function POST(request: Request) {
       );
     quota.count++;
     requests.set(user.id, quota);
-    const reader = request.body?.getReader();
-    if (!reader)
-      return NextResponse.json({ error: "Empty request." }, { status: 400 });
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 48000) {
-        await reader.cancel();
-        return NextResponse.json(
-          { error: "Request too large." },
-          { status: 413 },
-        );
-      }
-      chunks.push(value);
-    }
     let body;
     try {
-      body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      body = await readJsonRequest(request);
       validateAssistantRequest(body);
-    } catch {
+    } catch (error) {
       return NextResponse.json(
-        { error: "Check your message and classroom inputs." },
-        { status: 400 },
+        {
+          error:
+            (error as { status?: number }).status === 413
+              ? "Request too large."
+              : "Check your message and classroom inputs.",
+        },
+        { status: (error as { status?: number }).status === 413 ? 413 : 400 },
       );
     }
     const result = await cloudAssistant({

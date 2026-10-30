@@ -14,6 +14,7 @@ function Link(props: AnchorHTMLAttributes<HTMLAnchorElement>) {
 import dynamic from "next/dynamic";
 import {
   BookOpen,
+  ClipboardCheck,
   ArrowUpRight,
   ArrowRight,
   LayoutDashboard,
@@ -51,6 +52,7 @@ import {
 import { defaultInput, generate, replan, explain } from "@/lib/engine.mjs";
 import { records, save, put, type RecordEntry } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
+import Evaluation from "./evaluation";
 import TeacherAssistant from "./teacher-assistant";
 import { Schedule, Legend, Unmet, time } from "./schedule";
 import { syncDecision } from "@/lib/sync.mjs";
@@ -70,6 +72,7 @@ const navigation = [
   ["simulation", "Classroom simulation", Play],
   ["offline", "Offline workspace", CloudOff],
   ["portal", "Teacher portal", GraduationCap],
+  ["evaluation", "Judge’s desk", ClipboardCheck],
 ] as const;
 function FlatRoom({
   active,
@@ -428,6 +431,7 @@ export default function Workspace({ page }: { page: string }) {
             <a href="#how">How it works</a>
             <a href="#features">Our approach</a>
             <Link href="/impact">The impact</Link>
+            <Link href="/evaluation">For judges</Link>
           </nav>
           <Link className="login" href="/portal">
             Teacher login <ArrowUpRight size={15} />
@@ -737,6 +741,7 @@ export default function Workspace({ page }: { page: string }) {
                     offline: "Good learning travels with you.",
                     impact: "Built for possibility. Grounded in reality.",
                     presentation: "One classroom. Three minutes.",
+                    evaluation: "Built to be questioned. Ready to demonstrate.",
                   } as Record<string, string>
                 )[page] ?? "Your classroom"}
               </h1>
@@ -760,6 +765,9 @@ export default function Workspace({ page }: { page: string }) {
                 ×
               </button>
             </div>
+          )}
+          {page === "evaluation" && loaded && (
+            <Evaluation key={owner} plan={plan} online={online} owner={owner} />
           )}
           {page === "dashboard" && (
             <>

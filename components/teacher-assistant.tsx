@@ -53,6 +53,7 @@ import {
   type Worksheet,
 } from "@/lib/assistant.mjs";
 import { supabase } from "@/lib/supabase";
+import { downloadText, printText } from "@/lib/browser-files";
 import type { RecordEntry } from "@/lib/storage";
 type Message = {
   id: string;
@@ -98,30 +99,8 @@ function history(items: RecordEntry[]) {
     .map((r) => r.value as Conversation)
     .filter((c) => typeof c?.id === "string" && Array.isArray(c.messages));
 }
-function downloadText(text: string, name: string) {
-  const url = URL.createObjectURL(
-    new Blob([text], { type: "text/plain;charset=utf-8" }),
-  );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 function printWorksheet(sheet: Worksheet, answers: boolean) {
-  const popup = window.open("", "_blank");
-  if (!popup) throw Error("Allow pop-ups to open a printable worksheet.");
-  popup.opener = null;
-  const escaped = worksheetText(sheet, answers)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-  popup.document.write(
-    `<html lang="en"><head><title>Class ${sheet.grade} worksheet</title><style>body{margin:40px;font:16px/1.8 Arial;color:#183c32}pre{white-space:pre-wrap;font:inherit} @page{margin:16mm}</style></head><body><pre>${escaped}</pre></body></html>`,
-  );
-  popup.document.close();
-  popup.focus();
-  popup.print();
+  printText(worksheetText(sheet, answers), `Class ${sheet.grade} worksheet`);
 }
 export default function TeacherAssistant({
   owner,

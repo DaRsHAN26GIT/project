@@ -1,6 +1,8 @@
 "use client";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Html, ContactShadows } from "@react-three/drei";
+import { OrbitControls, ContactShadows } from "@react-three/drei";
+import { useEffect, useMemo } from "react";
+import { CanvasTexture, SRGBColorSpace } from "three";
 export default function Classroom({ active = 3 }: { active?: number }) {
   return (
     <Canvas camera={{ position: [8, 8, 10], fov: 38 }} dpr={[1, 1.5]}>
@@ -20,13 +22,7 @@ export default function Classroom({ active = 3 }: { active?: number }) {
       </mesh>
       {[2, 3, 4].map((g, i) => (
         <group key={g} position={[(i - 1) * 2.3, 0, 0.3]}>
-          <Html position={[0, 2.1, 0]} center>
-            <span
-              style={{ whiteSpace: "nowrap", fontSize: 11, color: "#164636" }}
-            >
-              Class {g}
-            </span>
-          </Html>
+          <GradeLabel grade={g} />
           <mesh position={[0, 0.05, 0]}>
             <cylinderGeometry args={[1, 1, 0.05, 32]} />
             <meshStandardMaterial
@@ -78,5 +74,36 @@ export default function Classroom({ active = 3 }: { active?: number }) {
         maxPolarAngle={1.3}
       />
     </Canvas>
+  );
+}
+
+// Keep labels inside the Three.js scene: DOM overlays create nested React roots.
+function GradeLabel({ grade }: { grade: number }) {
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Classroom labels need a 2D canvas.");
+    context.font = "32px Arial";
+    context.fillStyle = "#164636";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(`Class ${grade}`, 128, 32);
+    const label = new CanvasTexture(canvas);
+    label.colorSpace = SRGBColorSpace;
+    return label;
+  }, [grade]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return (
+    <sprite position={[0, 2.1, 0]} scale={[2, 0.5, 1]}>
+      <spriteMaterial
+        map={texture}
+        transparent
+        depthTest={false}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </sprite>
   );
 }

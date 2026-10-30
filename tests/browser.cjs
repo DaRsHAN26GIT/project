@@ -73,6 +73,7 @@ const { existsSync } = require("node:fs");
       "offline",
       "impact",
       "presentation",
+      "evaluation",
     ]) {
       await page.goto(base + "/" + route);
       await page.locator("h1").waitFor();

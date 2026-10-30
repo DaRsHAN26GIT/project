@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "node tests/run.mjs",
-    "test:browser": "node tests/browser.cjs && node tests/assistant-browser.cjs"
+    "test:browser": "node tests/browser.cjs && node tests/assistant-browser.cjs && node tests/classroom-browser.cjs && node tests/evaluation-browser.cjs",
+    "test:classroom": "node tests/classroom-browser.cjs",
+    "test:evaluation": "node tests/evaluation-browser.cjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.3.1",
