@@ -130,7 +130,7 @@ test("sync accepts multiple offline edits, detects stale updates and deleted rem
 
 import { runAssistantTool, assistantTools } from "../lib/assistant-tools.mjs";
 test("AI tools execute the real engine and reject unknown actions", () => {
-  assert.equal(assistantTools.length, 6);
+  assert.equal(assistantTools.length, 7);
   const result = runAssistantTool(
     "replan_timetable",
     { lostMinutes: 30, priorityGrade: 3 },
@@ -152,4 +152,31 @@ test("AI tools execute the real engine and reject unknown actions", () => {
   );
 });
 
-test("support levels and group sizes influence attention under scarcity",()=>{const input={minutes:30,breakStart:0,breakDuration:0,grades:[{id:2,students:5,subject:"Reading",duration:60,priority:2,level:"Independent"},{id:3,students:20,subject:"Mathematics",duration:60,priority:2,level:"Needs support"}]};const p=generate(input);constraints(p);assert.ok(p.attention[1].minutes>p.attention[0].minutes);});
+test("support levels and group sizes influence attention under scarcity", () => {
+  const input = {
+    minutes: 30,
+    breakStart: 0,
+    breakDuration: 0,
+    grades: [
+      {
+        id: 2,
+        students: 5,
+        subject: "Reading",
+        duration: 60,
+        priority: 2,
+        level: "Independent",
+      },
+      {
+        id: 3,
+        students: 20,
+        subject: "Mathematics",
+        duration: 60,
+        priority: 2,
+        level: "Needs support",
+      },
+    ],
+  };
+  const p = generate(input);
+  constraints(p);
+  assert.ok(p.attention[1].minutes > p.attention[0].minutes);
+});

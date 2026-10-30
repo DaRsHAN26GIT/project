@@ -1,4 +1,4 @@
-const CACHE = "ruralclass-v2";
+const CACHE = "ruralclass-v3";
 const PAGES = [
   "/",
   "/dashboard",
@@ -42,7 +42,8 @@ self.addEventListener("fetch", (e) => {
       caches.open(CACHE).then(async (cache) => {
         try {
           const response = await fetch(e.request);
-          if (response.ok && PAGES.includes(u.pathname)) await cache.put(u.pathname, response.clone());
+          if (response.ok && PAGES.includes(u.pathname))
+            await cache.put(u.pathname, response.clone());
           return response;
         } catch {
           return (await cache.match(u.pathname)) || Response.error();

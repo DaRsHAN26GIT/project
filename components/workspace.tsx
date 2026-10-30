@@ -1,5 +1,12 @@
 "use client";
-import { Component, useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import {
+  Component,
+  useEffect,
+  useEffectEvent,
+  useState,
+  useRef,
+  type ReactNode,
+} from "react";
 import type { AnchorHTMLAttributes } from "react";
 function Link(props: AnchorHTMLAttributes<HTMLAnchorElement>) {
   return <a {...props} />;
@@ -41,15 +48,11 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import {
-  defaultInput,
-  generate,
-  replan,
-  explain,
-  command,
-} from "@/lib/engine.mjs";
+import { defaultInput, generate, replan, explain } from "@/lib/engine.mjs";
 import { records, save, put, type RecordEntry } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
+import TeacherAssistant from "./teacher-assistant";
+import { Schedule, Legend, Unmet, time } from "./schedule";
 import { syncDecision } from "@/lib/sync.mjs";
 const Scene = dynamic(() => import("./classroom"), {
   ssr: false,
@@ -68,78 +71,6 @@ const navigation = [
   ["offline", "Offline workspace", CloudOff],
   ["portal", "Teacher portal", GraduationCap],
 ] as const;
-function Schedule({
-  plan,
-  selected,
-  onSelect,
-}: {
-  plan: Plan;
-  selected?: number;
-  onSelect?: (i: number) => void;
-}) {
-  return (
-    <div className="schedule">
-      <div
-        className="schedule-head"
-        style={{
-          gridTemplateColumns: `60px repeat(${plan.input.grades.length}, minmax(100px, 1fr))`,
-        }}
-      >
-        <span>TIME</span>
-        {plan.input.grades.map((g) => (
-          <strong key={g.id}>
-            Class {g.id}
-            <small>{g.students} learners</small>
-          </strong>
-        ))}
-      </div>
-      {plan.blocks.map((b, i) => (
-        <div
-          style={{
-            gridTemplateColumns: `60px repeat(${plan.input.grades.length}, minmax(100px, 1fr))`,
-          }}
-          className={`schedule-row ${selected === i ? "selected" : ""}`}
-          key={i}
-        >
-          <span>
-            {time(b.start)}
-            <small>{b.end - b.start} min</small>
-          </span>
-          {plan.input.grades.map((g) => (
-            <button
-              key={g.id}
-              onClick={() => onSelect?.(i)}
-              className={
-                b.break
-                  ? "break"
-                  : b.teacher === g.id
-                    ? "teacher"
-                    : "independent"
-              }
-            >
-              <b>
-                {b.break
-                  ? "Rest & recharge"
-                  : b.teacher === g.id
-                    ? g.subject
-                    : "Independent practice"}
-              </b>
-              <small>
-                {b.break
-                  ? "All grades"
-                  : b.teacher === g.id
-                    ? "With teacher"
-                    : "Peer learning · activity card"}
-              </small>
-            </button>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-const time = (m: number) =>
-  `${String(9 + Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 function FlatRoom({
   active,
   onSelect,
@@ -199,8 +130,6 @@ export default function Workspace({ page }: { page: string }) {
     [priority, setPriority] = useState(3),
     [filter, setFilter] = useState("All"),
     [step, setStep] = useState(0),
-    [message, setMessage] = useState(""),
-    [answer, setAnswer] = useState(""),
     [busy, setBusy] = useState(false),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -211,6 +140,7 @@ export default function Workspace({ page }: { page: string }) {
     [attendance, setAttendance] = useState(30),
     [profile, setProfile] = useState("Demo teacher"),
     [loaded, setLoaded] = useState(false);
+  const currentOwner = useRef("demo");
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     update();
@@ -227,12 +157,15 @@ export default function Workspace({ page }: { page: string }) {
       navigator.serviceWorker
         .register("/sw.js")
         .catch(() => setNotice("Offline resources could not be cached."));
-    supabase?.auth
-      .getSession()
-      .then(({ data }) => setOwner(data.session?.user.id ?? "demo"));
     const sub = supabase?.auth.onAuthStateChange((_e, s) => {
+      const nextOwner = s?.user.id ?? "demo";
+      if (nextOwner === currentOwner.current) return;
+      currentOwner.current = nextOwner;
       setLoaded(false);
-      setOwner(s?.user.id ?? "demo");
+      setOwner(nextOwner);
+      setProposal(null);
+      setNote("");
+      setProfile(nextOwner === "demo" ? "Demo teacher" : "Teacher");
       setItems([]);
       setPlan(generate(defaultInput));
       setInput(structuredClone(defaultInput));
@@ -261,11 +194,13 @@ export default function Workspace({ page }: { page: string }) {
         }
         setLoaded(true);
       })
-      .catch(() =>
+      .catch(() => {
+        if (cancelled) return;
         setNotice(
           "Local storage unavailable; export your work before leaving.",
-        ),
-      );
+        );
+        setLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -282,9 +217,11 @@ export default function Workspace({ page }: { page: string }) {
     try {
       await save(kind, value, owner, id);
       setItems(await records(owner));
-      setNotice("Saved on this device.");
+      if (kind !== "conversation") setNotice("Saved on this device.");
+      return true;
     } catch {
       setNotice("Save failed. Export your records before closing.");
+      return false;
     }
   }
   function calculate() {
@@ -305,52 +242,11 @@ export default function Workspace({ page }: { page: string }) {
     }
   }
   async function approve(p: Plan) {
-    await persist("plan", p);
+    if (!(await persist("plan", p))) return false;
     setPlan(p);
     setInput(p.input);
     setProposal(null);
-  }
-  async function assistant() {
-    setBusy(true);
-    setProposal(null);
-    try {
-      if (online) {
-        const r = await fetch("/api/assistant", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...((await supabase?.auth.getSession())?.data.session?.access_token
-              ? {
-                  Authorization: `Bearer ${(await supabase?.auth.getSession())?.data.session?.access_token}`,
-                }
-              : {}),
-          },
-          body: JSON.stringify({
-            message,
-            input: plan.input,
-            progress: items
-              .filter((r) => r.kind === "assessment")
-              .slice(-100)
-              .map((r) => r.value),
-          }),
-        });
-        if (r.ok) {
-          const result = await r.json();
-          setAnswer(result.message);
-          if (result.plan) setProposal(result.plan);
-          return;
-        }
-        if (r.status !== 503)
-          throw Error("Assistant request failed. Try a local command.");
-      }
-      const result = command(message, plan.input);
-      setAnswer(result.message);
-      if (result.plan) setProposal(result.plan);
-    } catch (e) {
-      setAnswer((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    return true;
   }
   async function auth(register = false) {
     if (!supabase) {
@@ -1309,62 +1205,16 @@ export default function Workspace({ page }: { page: string }) {
               )}
             </>
           )}
-          {page === "assistant" && (
-            <section className="panel assistant">
-              <span className="assistant-symbol">
-                <Sparkles size={30} />
-              </span>
-              <h2>A little help for a big responsibility.</h2>
-              <p>
-                Cloud AI when configured. Transparent local commands otherwise.
-                <br />
-                Proposals are never saved without your approval.
-              </p>
-              <div className="suggestions">
-                {[
-                  "Class 3 is struggling. Reduce available time to 120 minutes.",
-                  "Generate today’s timetable.",
-                  "Show Class 2 activities.",
-                ].map((s) => (
-                  <button key={s} onClick={() => setMessage(s)}>
-                    {s}
-                    <ArrowUpRight size={14} />
-                  </button>
-                ))}
-              </div>
-              <label className="sr-only" htmlFor="message">
-                Teacher request
-              </label>
-              <textarea
-                id="message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="What would make your teaching day easier?"
-                maxLength={2000}
-              />
-              <button
-                className="button"
-                disabled={busy || !message.trim()}
-                onClick={assistant}
-              >
-                {busy ? "Preparing proposal…" : "Ask your companion"}
-                <ArrowRight size={16} />
-              </button>
-              {answer && (
-                <div className="answer" role="status">
-                  {answer}
-                </div>
-              )}
-              {proposal && (
-                <>
-                  <Schedule plan={proposal} />
-                  <Unmet plan={proposal} />
-                  <button className="button" onClick={() => approve(proposal)}>
-                    Approve proposed timetable
-                  </button>
-                </>
-              )}
-            </section>
+          {page === "assistant" && loaded && (
+            <TeacherAssistant
+              key={owner}
+              owner={owner}
+              plan={plan}
+              items={items}
+              online={online}
+              onApprove={approve}
+              onSave={persist}
+            />
           )}
           {page === "analytics" && (
             <>
@@ -1934,36 +1784,6 @@ export default function Workspace({ page }: { page: string }) {
         </main>
       </div>
     </div>
-  );
-}
-function Legend() {
-  return (
-    <div className="legend">
-      <span>
-        <i className="teacher" /> Teacher-led
-      </span>
-      <span>
-        <i className="independent" /> Independent activity
-      </span>
-      <span>
-        <i className="break" /> Break
-      </span>
-    </div>
-  );
-}
-function Unmet({ plan }: { plan: Plan }) {
-  return plan.unmet.length ? (
-    <div className="warning" role="status">
-      Unmet requirements:{" "}
-      {plan.unmet
-        .map((g) => `Class ${g.grade}: ${g.minutes} minutes`)
-        .join(" · ")}
-      . These lessons need another session.
-    </div>
-  ) : (
-    <p className="success">
-      <Check size={15} /> All requested teaching minutes fit this plan.
-    </p>
   );
 }
 

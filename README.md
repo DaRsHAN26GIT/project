@@ -46,7 +46,7 @@ Shared-device privacy: IndexedDB is durable and **not encrypted**. Sign-out scop
 
 ## Optional OpenAI
 
-Set `OPENAI_API_KEY` server-side and optionally `OPENAI_MODEL` (default `gpt-4.1-mini`). The API route verifies a Supabase bearer session before spending the key. OpenAI Responses uses six strict-schema function tools to read classroom details, generate/replan timetables, retrieve activities and assessment summaries, and explain changes; the same deterministic engine calculates every proposal. No proposal is saved automatically. Kannada can be requested in the prompt; offline commands are limited English intents, not a cloud language model. Production deployments should add durable user quotas and provider budget limits before opening registration broadly.
+Set `OPENAI_API_KEY` server-side and optionally `OPENAI_MODEL` (default `gpt-4.1-mini`). The API route verifies a Supabase bearer session before spending the key. OpenAI Responses uses seven strict-schema function tools to read classroom details, generate/replan timetables, retrieve activities and assessment summaries, and explain changes; the same deterministic engine calculates every proposal. No proposal is saved automatically. Kannada can be requested in the prompt; offline commands are limited English intents, not a cloud language model. Production deployments should add durable user quotas and provider budget limits before opening registration broadly.
 
 Without cloud configuration, the local assistant handles “Generate today’s timetable”, “Reduce time to 2 hours”, “Prioritize Class 3”, and “Show Class 2 activities.” It labels local execution honestly. Hugging Face models were intentionally omitted: essential offline scheduling needs no downloaded model.
 
@@ -71,3 +71,25 @@ Import this repository into Vercel as a Next.js project. Set optional environmen
 ## Research
 
 The Impact page links to official UDISE+ and ASER sources without fabricating statistics. Counts of single-teacher schools must not be described as counts of multi-grade classrooms. The project has not conducted field trials.
+
+## Updated teacher companion
+
+The assistant now uses local shadcn/ui components (Radix Dialog and Tabs, Button, Badge, Card, Textarea), keeping RuralClass's original colours. It includes account-scoped conversation history, contextual grade/time information, timetable comparisons with explicit approval or dismissal, worksheet creation, answer-key controls, print/download, conversation export, keyboard submission, and request cancellation. Follow-up planning uses the latest draft; approved and superseded proposals are kept distinct.
+
+The local assistant supports planning commands and deterministic Mathematics/Reading worksheet templates, including correct answer keys. It is clearly labelled **Local tools**, not cloud AI. Saved chat records join the existing Supabase ownership/sync flow when authenticated. Fresh Supabase projects can use `supabase/schema.sql`; existing projects must also apply `supabase/migrations/20261030_conversations.sql` to permit conversation records. The same RLS policies remain in effect. IndexedDB is not encrypted: do not put personal child information in chat on a shared device.
+
+### Connect live AI in your VS Code project
+
+1. Create `.env.local` **beside `package.json`**, using `.env.example` as a guide. Keep the file private; it is ignored by Git.
+2. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` using your Supabase project settings. Apply the SQL schema and enable email/password authentication.
+3. Choose **one** server-side AI provider:
+   - OpenAI: `AI_PROVIDER=openai`, `OPENAI_API_KEY=...`, and optionally `OPENAI_MODEL=gpt-4.1-mini`.
+   - Hugging Face: `AI_PROVIDER=huggingface`, `HF_TOKEN=...`, and `HF_MODEL=...`. Choose an available Inference Provider model with tool-calling support. Model availability, permissions, and billing depend on your HF account; no model is bundled or downloaded into the browser.
+4. Stop the server with Ctrl+C, then restart with `npm.cmd run dev` on Windows (or `npm run dev` elsewhere).
+5. Sign in through **Teacher portal**. In **Teacher assistant → Settings**, confirm that authentication and the provider are configured. The badge shows the active mode. The language selector requests English or Kannada; quality depends on the configured model and has not been language-validated. Local commands remain English.
+
+Cloud requests use bounded conversation history, strict function schemas, server-side provider credentials, a verified Supabase session, cancellation/timeouts, and a demo per-instance rate limit. The provider can call the real scheduler or prepare a worksheet, but has no save/approval tool. Hugging Face uses its OpenAI-compatible Inference Providers chat endpoint; a model that does not support the declared tools will return an error. Retry or use local tools without losing the thread. Live provider calls and cloud RLS integration still require real project credentials for validation; transport tests use mocks.
+
+### Easier Windows startup
+
+Extract the **entire** ZIP, then double-click `start-windows.cmd` in the same folder as `package.json`. It installs the locked dependencies and starts the website. Node.js must already be installed. Alternatively, in VS Code's terminal in that folder, run `npm.cmd ci` followed by `npm.cmd run dev`.

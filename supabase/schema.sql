@@ -1,7 +1,7 @@
 -- Apply in the Supabase SQL editor. Public demo uses fictional local records only.
 create table if not exists public.records (
  id text primary key, owner uuid not null references auth.users(id) on delete cascade,
- kind text not null check(kind in ('profile','classroom','student','assessment','plan','activity','completion','observation','attendance')),
+ kind text not null check(kind in ('profile','classroom','student','assessment','plan','activity','completion','observation','attendance','conversation')),
  value jsonb not null, revision integer not null default 1 check(revision>0), updated_at timestamptz not null default now()
 );
 alter table public.records enable row level security;

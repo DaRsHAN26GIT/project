@@ -1,10 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Standalone browser runner uses the managed runtime CommonJS Playwright installation. */
 const { chromium } = require("playwright");
 const assert = require("node:assert/strict");
-const {existsSync}=require("node:fs");
+const { existsSync } = require("node:fs");
 (async () => {
   const browser = await chromium.launch({
-    executablePath: process.env.CHROMIUM_PATH || (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : chromium.executablePath()),
+    executablePath:
+      process.env.CHROMIUM_PATH ||
+      (existsSync("/usr/bin/chromium")
+        ? "/usr/bin/chromium"
+        : chromium.executablePath()),
     headless: true,
     args: ["--no-sandbox", "--enable-unsafe-swiftshader"],
   });
@@ -77,6 +81,7 @@ const {existsSync}=require("node:fs");
     console.log("PASS all application routes");
     await page.goto(base + "/activities");
     await page.getByRole("button", { name: "Mark complete" }).first().click();
+    await page.getByText("Saved on this device.").waitFor();
     await page.reload();
     await page.getByRole("button", { name: "Completed" }).first().waitFor();
     console.log("PASS activity completion persistence");
@@ -87,14 +92,39 @@ const {existsSync}=require("node:fs");
     await page.getByRole("button", { name: "Save note locally" }).click();
     await page.getByText("Saved on this device.").waitFor();
     await page.evaluate(async () => {
-      const db = await new Promise((resolve,reject)=>{const r=indexedDB.open('ruralclass',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
-      await new Promise((resolve,reject)=>{const tx=db.transaction('records','readwrite');tx.objectStore('records').put({id:'other-owner:note',owner:'other-owner',kind:'observation',value:{note:'Private note from another account'},revision:1,updatedAt:new Date().toISOString(),synced:false});tx.oncomplete=resolve;tx.onerror=reject;});db.close();
+      const db = await new Promise((resolve, reject) => {
+        const r = indexedDB.open("ruralclass", 1);
+        r.onsuccess = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+      });
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction("records", "readwrite");
+        tx.objectStore("records").put({
+          id: "other-owner:note",
+          owner: "other-owner",
+          kind: "observation",
+          value: { note: "Private note from another account" },
+          revision: 1,
+          updatedAt: new Date().toISOString(),
+          synced: false,
+        });
+        tx.oncomplete = resolve;
+        tx.onerror = reject;
+      });
+      db.close();
     });
     await page.reload();
-    assert.equal(await page.getByText('Private note from another account').count(),0);
-    const api = await page.request.post(base+'/api/assistant',{data:{message:'hello'}});
-    assert.equal(api.status(),503);
-    console.log('PASS local account isolation and unconfigured cloud API fallback');
+    assert.equal(
+      await page.getByText("Private note from another account").count(),
+      0,
+    );
+    const api = await page.request.post(base + "/api/assistant", {
+      data: { message: "hello" },
+    });
+    assert.equal(api.status(), 503);
+    console.log(
+      "PASS local account isolation and unconfigured cloud API fallback",
+    );
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
       if (!navigator.serviceWorker.controller)
@@ -117,7 +147,7 @@ const {existsSync}=require("node:fs");
     await page
       .getByLabel("Teacher request")
       .fill("Reduce time to 60 minutes and prioritize Class 3");
-    await page.getByRole("button", { name: "Ask your companion" }).click();
+    await page.getByRole("button", { name: "Send message" }).click();
     await page
       .getByText(
         "Calculated locally using a deterministic scheduling heuristic.",
@@ -152,21 +182,34 @@ const {existsSync}=require("node:fs");
     console.log("PASS mobile navigation, overflow and keyboard focus");
     assert.deepEqual(errors, []);
     console.log("PASS no browser runtime errors");
-    const visualContext = await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'no-preference'});
+    const visualContext = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      reducedMotion: "no-preference",
+    });
     const visualPage = await visualContext.newPage();
-    visualPage.on('pageerror',e=>errors.push(e.message));
+    visualPage.on("pageerror", (e) => errors.push(e.message));
     await visualPage.goto(base);
-    const toggle = visualPage.getByRole('button',{name:'Explore in 3D'});
+    const toggle = visualPage.getByRole("button", { name: "Explore in 3D" });
     await visualPage.waitForTimeout(500);
-    if(await toggle.isEnabled()) {
+    if (await toggle.isEnabled()) {
       await toggle.click();
-      await visualPage.locator('.canvas canvas').waitFor();
-      await visualPage.getByRole('button',{name:'Class 4 Independent'}).click();
+      await visualPage.locator(".canvas canvas").waitFor();
+      await visualPage
+        .getByRole("button", { name: "Class 4 Independent" })
+        .click();
       await visualPage.waitForTimeout(1200);
-      await visualPage.screenshot({path:'/tmp/ruralclass-3d.png',fullPage:false});
-      assert.deepEqual(errors,[]);
-      console.log('PASS lazy-loaded interactive 3D classroom without runtime errors');
-    } else console.log('SKIP actual 3D rendering: WebGL unavailable; 2D fallback passed');
+      await visualPage.screenshot({
+        path: "/tmp/ruralclass-3d.png",
+        fullPage: false,
+      });
+      assert.deepEqual(errors, []);
+      console.log(
+        "PASS lazy-loaded interactive 3D classroom without runtime errors",
+      );
+    } else
+      console.log(
+        "SKIP actual 3D rendering: WebGL unavailable; 2D fallback passed",
+      );
     await visualContext.close();
   } finally {
     await browser.close();
